@@ -64,6 +64,55 @@ async function readDisk(file: string) {
 	return fs.readFile(file, "utf8").catch(() => null);
 }
 
+for (const { folder, openWith } of [
+	{ folder: "empty", openWith: "right-click" },
+	{ folder: "examples/list-tables", openWith: "actions button" },
+]) {
+	test(`copies the absolute folder path from the ${openWith} menu`, async ({
+		hubble,
+	}) => {
+		const folderPath = path.join(hubble.workspace, folder);
+		await fs.mkdir(folderPath, { recursive: true });
+		const page = await hubble.launch();
+		await page.evaluate(() => {
+			navigator.clipboard.writeText = async (text) => {
+				document.documentElement.dataset.copiedPath = text;
+			};
+		});
+
+		if (openWith === "right-click") {
+			await page
+				.getByRole("treeitem")
+				.filter({
+					has: page.getByRole("button", { name: `Actions for ${folder}` }),
+				})
+				.click({ button: "right" });
+		} else {
+			await page.getByRole("button", { name: `Actions for ${folder}` }).click();
+		}
+		await page.getByRole("menuitem", { name: "Copy folder path" }).click();
+
+		await expect(page.locator("html")).toHaveAttribute(
+			"data-copied-path",
+			folderPath,
+		);
+		await expect(
+			page.getByText("Folder path copied", { exact: true }),
+		).toBeVisible();
+
+		await page.evaluate(() => {
+			navigator.clipboard.writeText = async () => {
+				throw new Error("Clipboard unavailable");
+			};
+		});
+		await page.getByRole("button", { name: `Actions for ${folder}` }).click();
+		await page.getByRole("menuitem", { name: "Copy folder path" }).click();
+		await expect(
+			page.getByText("Failed to copy folder path", { exact: true }),
+		).toBeVisible();
+	});
+}
+
 test("creates a note and saves typed content to disk", async ({ hubble }) => {
 	const page = await hubble.launch();
 	await page.getByRole("button", { name: "New file" }).click();

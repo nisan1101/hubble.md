@@ -129,6 +129,9 @@ export function Sidebar({
 			onOpenFileInDefaultApp={(path) => void openPathInDefaultApp(path)}
 			onRevealFile={(path) => void desktopApi.revealFile(path)}
 			onCopyFilePath={(path) => void copyFilePath(path)}
+			onCopyFolderPath={(folderId) =>
+				void copyText(absolutePath(folderId), "Folder path")
+			}
 			onRevealFolder={(folderId) =>
 				void desktopApi.revealFile(absolutePath(folderId))
 			}
