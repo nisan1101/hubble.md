@@ -31,7 +31,7 @@ afterEach(() => {
 describe("Sidebar", () => {
 	it("continues editing after a new note name is submitted", async () => {
 		const onRenameFile = vi.fn();
-		renderSidebar(onRenameFile);
+		renderSidebar(<SidebarHarness onRenameFile={onRenameFile} />);
 
 		await act(async () => newFileButton().click());
 		await act(async () => {
@@ -63,14 +63,86 @@ describe("Sidebar", () => {
 		);
 		expect(focusTree).not.toHaveBeenCalled();
 	});
+
+	it.each([
+		"right-click",
+		"actions button",
+	])("copies a compacted folder path from the %s menu", async (openWith) => {
+		const onCopyFolderPath = vi.fn();
+		renderSidebar(
+			<Sidebar
+				files={[]}
+				folders={[{ path: "/workspace/examples/list-tables" }]}
+				currentPath={null}
+				sortMode="alpha"
+				getDisplayPath={(path) => path.replace("/workspace/", "")}
+				onSortModeChange={() => {}}
+				onSelectFile={() => {}}
+				onCopyFolderPath={onCopyFolderPath}
+			/>,
+		);
+
+		const trigger = document.querySelector<HTMLButtonElement>(
+			'button[aria-label="Actions for examples/list-tables"]',
+		);
+		expect(trigger).not.toBeNull();
+		await act(async () => {
+			if (openWith === "right-click") {
+				trigger
+					?.closest('[role="treeitem"]')
+					?.dispatchEvent(
+						new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+					);
+			} else {
+				trigger?.click();
+			}
+		});
+		const item = menuItem("Copy folder path");
+		expect(item).toBeDefined();
+		await act(async () => item?.click());
+
+		expect(onCopyFolderPath).toHaveBeenCalledExactlyOnceWith(
+			"examples/list-tables/",
+		);
+	});
+
+	it("omits folder path copying when the host does not provide it", async () => {
+		renderSidebar(
+			<Sidebar
+				files={[]}
+				folders={[{ path: "empty" }]}
+				currentPath={null}
+				sortMode="alpha"
+				onSortModeChange={() => {}}
+				onSelectFile={() => {}}
+				onRevealFolder={() => {}}
+			/>,
+		);
+		await act(async () => {
+			document
+				.querySelector<HTMLButtonElement>(
+					'button[aria-label="Actions for empty"]',
+				)
+				?.click();
+		});
+
+		expect(menuItem("Reveal in File Manager")).toBeDefined();
+		expect(menuItem("Copy folder path")).toBeUndefined();
+	});
 });
 
-function renderSidebar(onRenameFile: RenameFile) {
+function renderSidebar(children: ReactNode) {
 	const container = document.createElement("div");
 	document.body.append(container);
 	const root = createRoot(container);
 	roots.push(root);
-	act(() => root.render(<SidebarHarness onRenameFile={onRenameFile} />));
+	act(() => root.render(children));
+}
+
+function menuItem(label: string) {
+	return Array.from(
+		document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+	).find((element) => element.textContent?.includes(label));
 }
 
 function SidebarHarness({ onRenameFile }: { onRenameFile: RenameFile }) {

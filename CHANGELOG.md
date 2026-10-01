@@ -13,6 +13,8 @@ Format loosely follows [Keep a Changelog](https://keepachangelog.com).
 
 ### Fixed
 
+- Folder menus now include Copy folder path, matching file menus.
+
 ## [0.2.1] - 2026-09-28
 
 ### Added
